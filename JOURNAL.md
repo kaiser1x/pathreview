@@ -9,7 +9,7 @@
 **Tier:** [ ] Tier 1  [x] Tier 2  [ ] Tier 3
 
 **Problem summary:**
-I initially thought this might be a filtering problem because irrelevant chunks from the wrong documents were being attached to the results. However, after looking more closely at the issue, it seems more likely to be a scoring problem. Common technology names such as React or Python can appear frequently across multiple resumes and README files, causing those chunks to receive high BM25 keyword scores even when they are not contextually relevant to the query. Because the hybrid scoring function uses a fixed weighting between BM25 and vector similarity (`vector_weight=0.7`, `keyword_weight=0.3` in [hybrid.py:14](rag/retriever/hybrid.py#L14), combined at [hybrid.py:79-80](rag/retriever/hybrid.py#L79-L80)), these strong keyword matches may rank irrelevant chunks above more semantically relevant ones.
+I initially thought this might be a filtering problem because irrelevant chunks from the wrong documents were being attached to the results. However, after looking more closely at the issue, it seems more likely to be a scoring problem. Common technology names such as React or Python can appear frequently across multiple resumes and README files, causing those chunks to receive high BM25 keyword scores even when they are not contextually relevant to the query. Because the hybrid scoring function uses a fixed weighting between BM25 and vector similarity (`vector_weight=0.7`, `keyword_weight=0.3` in [hybrid.py:14](rag/retriever/hybrid.py#L14), combined at [hybrid.py:79-80](rag/retriever/hybrid.py#L79-L80)), these strong keyword matches can rank irrelevant chunks above more semantically relevant ones.
 
 **"Is this right for me?" checklist reasoning:**
 
@@ -25,7 +25,7 @@ I initially thought this might be a filtering problem because irrelevant chunks 
 *Part 3 — Codebase readiness*
 - [x] Found and read the specific function: `HybridRetriever.retrieve()` in [hybrid.py](rag/retriever/hybrid.py), including the fixed-weight blend at lines 79-80.
 - [x] Read enough surrounding context (constructor defaults, `keyword_search.py` BM25 implementation) to sketch a rough plan: likely either normalize BM25 scores before blending, or make weighting adaptive/query-dependent instead of a static constant.
-- [ ] Read the relevant test file — no test file currently exists for the hybrid retriever (checked `tests/unit/` and `tests/`, no `hybrid` matches). I'll need to write the test file from scratch rather than extend an existing one; noting this as an open item to revisit before implementation in Week 8.
+- [ ] Read the relevant test file — no test file currently exists for the hybrid retriever (checked `tests/unit/` and `tests/`, no `hybrid` matches). Will write the test file from scratch rather than extend an existing one; noting this as an open item to revisit before implementation in Week 8.
 
 *Part 4 — Scope and time*
 - [x] Checked issue comments and cohort ledger claims count — comfortable with current claim count on this issue.
