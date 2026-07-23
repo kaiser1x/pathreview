@@ -37,3 +37,45 @@ I initially thought this might be a filtering problem because irrelevant chunks 
 **Setup confirmation:** [x] App runs locally at localhost:5173
 
 **Cohort ledger:** [x] Issue added to cohort ledger
+
+## Week 8 — Reproduction & Solution Planning
+
+**Reproduction commit:** [https://github.com/kaiser1x/pathreview/commit/86b9fec](https://github.com/kaiser1x/pathreview/commit/86b9fec)
+
+**Reproduction summary:**
+Added [`tests/unit/test_hybrid_retriever.py`](tests/unit/test_hybrid_retriever.py) — no test file existed for
+`hybrid.py` before this (flagged as an open item in Week 7). Two passing tests currently document the *buggy*
+behavior (they assert the bug is present, so they'll need inverting once a fix lands):
+
+1. `test_keyword_heavy_wrong_doc_chunk_outranks_relevant_chunk` — constructs a wrong-document chunk that
+   repeats "React" (high raw BM25 score) alongside a genuinely relevant chunk that is only the *second-best*
+   vector match. The wrong-doc chunk outranks the relevant one despite `vector_weight=0.7` vs.
+   `keyword_weight=0.3`.
+2. `test_keyword_score_normalized_by_batch_max_not_absolute` — isolates the mechanism: `keyword_score` is
+   computed as `bm25_score / max(bm25_score in this batch)` ([hybrid.py:58-59](rag/retriever/hybrid.py#L58-L59)),
+   so a chunk that never appears in the vector results at all can still land a `keyword_score` near 1.0 purely
+   because another chunk sharing the same common tech term set the batch max.
+
+**Root cause (confirmed):** batch-relative BM25 normalization inflates keyword scores for common, low-idf
+terms (like tech names) regardless of absolute relevance, letting keyword-heavy wrong-document chunks
+out-blend a relevant chunk that isn't the single top vector match. Full writeup with code line references in
+[PLAN.md](PLAN.md#understand).
+
+**Secondary finding:** `HybridRetriever._get_all_chunks()` fetches all chunks every call but never uses the
+result ([hybrid.py:50-51](rag/retriever/hybrid.py#L50-L51)), and `KeywordSearcher` is searched without ever
+being `.index()`ed with the current collection's chunks first — likely a second bug (stale/cross-profile
+keyword index) noted in [PLAN.md](PLAN.md#plan-implementation-tasks--not-implemented-yet-per-instructions)
+task 3 for Week 9 investigation.
+
+**PLAN.md:** [PLAN.md](PLAN.md) — 5 implementation tasks, risks, and edge cases documented.
+
+**Walkthrough video:** [https://www.loom.com/share/921b7772fb644f889a96c13c34e5fdb0](https://www.loom.com/share/921b7772fb644f889a96c13c34e5fdb0)
+
+**Blockers / Open questions:**
+- `HybridRetriever` isn't wired into any live caller yet (no instantiation site found outside `hybrid.py`
+  itself) — need to confirm intended integration point before changing the constructor's public API.
+- Repo had no local `.venv`; created one with Python 3.12 (repo requires `>=3.11`, and the pre-existing shared
+  `.venv` at `c:\AI201\.venv` was 3.10) and ran `pip install -e ".[dev]"` to get `pytest`/`structlog`/etc.
+- Full `tests/unit` run shows 53 pre-existing failures unrelated to this issue (confirmed by running the
+  suite with and without the new test file — same 53 failures either way); not investigated further as
+  out of scope for #24.
